@@ -5,7 +5,7 @@
     turn: 1,
     resources: 100,
     selectedPlanet: null,
-    gridSize: { width: 6, height: 5 }, // Rectangular grid size
+    gridSize: { width: 10, height: 10 }, // Rectangular grid size
     hexSize: 50, // Default hex size in pixels
     staggered: true, // Enable staggered rows
   };
@@ -84,9 +84,30 @@
 
   function drawStars() {
     const starCount = 30;
+    const starTypes = [
+      { color: "#ffffff", radius: 1.5, pulseSpeed: 0.5 },
+      { color: "#ffcc00", radius: 2, pulseSpeed: 0.7 },
+      { color: "#ff6699", radius: 1.8, pulseSpeed: 0.6 },
+      { color: "#66ccff", radius: 2.2, pulseSpeed: 0.8 },
+      { color: "#ff33cc", radius: 2, pulseSpeed: 0.9 },
+    ];
+
+    let stars = [];
+    let availableHexes = [];
+
+    // Generate all possible hex positions
+    for (let r = 0; r < gameState.gridSize.height; r++) {
+      for (let q = 0; q < gameState.gridSize.width; q++) {
+        availableHexes.push({ q, r });
+      }
+    }
+
+    // Randomly select 30 hexes for stars
     for (let i = 0; i < starCount; i++) {
-      const q = Math.floor(Math.random() * gameState.gridSize.width);
-      const r = Math.floor(Math.random() * gameState.gridSize.height);
+      if (availableHexes.length === 0) break;
+      const index = Math.floor(Math.random() * availableHexes.length);
+      const { q, r } = availableHexes.splice(index, 1)[0];
+
       const offsetX =
         (canvas.width -
           (gameState.gridSize.width - 1) * gameState.hexSize * Math.sqrt(3)) /
@@ -95,15 +116,57 @@
         (canvas.height -
           (gameState.gridSize.height - 1) * gameState.hexSize * 1.5) /
         2;
+
+      // Calculate the center of the hex
       const x =
         offsetX +
         gameState.hexSize * (Math.sqrt(3) * q + (Math.sqrt(3) / 2) * r);
       const y = offsetY + gameState.hexSize * (1.5 * r);
-      ctx.beginPath();
-      ctx.arc(x, y, 2, 0, 2 * Math.PI);
-      ctx.fillStyle = "#ffffff";
-      ctx.fill();
+
+      const starType = starTypes[Math.floor(Math.random() * starTypes.length)];
+      stars.push({ x, y, ...starType, phase: Math.random() * Math.PI * 2 });
     }
+
+    function animateStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawHexGrid();
+
+      stars.forEach((star) => {
+        const pulseScale = 0.2 * Math.sin(star.phase) + 1;
+        const radius = star.radius * pulseScale;
+
+        // Create radial gradient for the star
+        const gradient = ctx.createRadialGradient(
+          star.x,
+          star.y,
+          0,
+          star.x,
+          star.y,
+          radius * 2,
+        );
+        gradient.addColorStop(0, star.color);
+        gradient.addColorStop(0.7, star.color + "80"); // 50% opacity
+        gradient.addColorStop(1, "transparent");
+
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, radius * 2, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Add a bright center to the star
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, radius * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = "white";
+        ctx.fill();
+
+        // Update the star's phase for the next frame
+        star.phase += star.pulseSpeed * 0.05;
+      });
+
+      requestAnimationFrame(animateStars);
+    }
+
+    animateStars();
   }
 
   function adjustGridSize(size) {
@@ -140,8 +203,8 @@
         <input
           type="range"
           id="gridSize"
-          min="3"
-          max="10"
+          min="5"
+          max="50"
           bind:value={gameState.gridSize.width}
           on:change={() => adjustGridSize(gameState.gridSize.width)}
           class="setting-input" />
@@ -300,5 +363,11 @@
 
   .planet-info {
     font-size: 0.9rem;
+  }
+
+  canvas {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    border-radius: 10px;
+    background: radial-gradient(ellipse at center, #0a2e38 0%, #000000 70%);
   }
 </style>
